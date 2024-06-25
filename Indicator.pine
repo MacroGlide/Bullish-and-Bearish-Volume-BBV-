@@ -1,0 +1,76 @@
+//@version=5
+indicator("Bullish/Bearish Volume", "BBV", format=format.volume)
+
+// Function to calculate buying and selling volumes
+upAndDownVolume() =>
+    float posVol = 0.0
+    float negVol = 0.0
+    
+    if close > close[1]
+        posVol := volume
+    else if close < close[1]
+        negVol := -volume
+    else
+        posVol := volume / 2
+        negVol := -volume / 2
+        
+    [posVol, negVol]
+
+// Use a fixed 1-minute timeframe
+fixedLowerTimeframe = "1"
+[upVolumeArray, downVolumeArray] = request.security_lower_tf(syminfo.tickerid, fixedLowerTimeframe, upAndDownVolume())
+
+// Sum up the collected volumes
+upVolume = array.sum(upVolumeArray)
+downVolume = array.sum(downVolumeArray)
+totalVolume = upVolume + math.abs(downVolume) 
+delta = upVolume + downVolume
+
+// Moving average of delta
+maLength = input.int(7, title="Moving Average Length (Delta)")
+avgDelta = ta.sma(delta, maLength)
+
+// Volume volatility
+volatilityPeriod = input.int(3, title="Volatility Period (Normalization)")
+volatility = ta.stdev(volume, volatilityPeriod)
+
+// Logarithmic normalization of volatility
+logVolatility = math.log(volatility + 1)
+scalingFactor = 0.1
+normalizedVolatility = (logVolatility / math.log(ta.highest(volatility, volatilityPeriod) + 1)) * ta.highest(totalVolume, volatilityPeriod) * scalingFactor
+normalizedVolatility := math.min(normalizedVolatility, totalVolume)
+
+// Display columns for buying and selling volumes
+plot(upVolume, "Up Volume", style=plot.style_columns, color=color.new(color.green, 60))
+plot(downVolume, "Down Volume", style=plot.style_columns, color=color.new(color.red, 60))
+
+// Display total volume
+plot(totalVolume, "Total Volume", style=plot.style_columns, color=color.new(color.gray, 90))
+
+// Display delta
+plot(delta, "Delta Volume", style=plot.style_area, color=color.new(color.blue, 60), transp=20)
+
+// Display the moving average of delta
+plot(avgDelta, "Average Delta", color=color.new(color.blue, 0))
+
+// Display volume volatility (normalized)
+plot(normalizedVolatility, "Volume Volatility", style=plot.style_histogram, color=color.new(color.yellow, 70))
+
+// User input for the volume mismatch percentage
+mismatchPercentage = input.float(20, title="Volume Mismatch Percentage", minval=1, maxval=100) / 100
+
+// Condition for volume mismatch
+volumeMismatchCondition = math.abs(upVolume - math.abs(downVolume)) > (totalVolume * mismatchPercentage)
+
+// Conditions for displaying arrows
+mismatchUp = (close > close[1] and delta < 0 and volumeMismatchCondition)
+mismatchDown = (close < close[1] and delta > 0 and volumeMismatchCondition)
+
+plotshape(mismatchUp, style=shape.triangledown, location=location.top, color=color.new(color.red, 70), size=size.tiny)
+plotshape(mismatchDown, style=shape.triangleup, location=location.bottom, color=color.new(color.green, 70), size=size.tiny)
+
+// Error if there is no volume data available
+var cumVol = 0.0
+cumVol += nz(volume)
+if barstate.islast and cumVol == 0
+    runtime.error("The data vendor doesn't provide volume data for this symbol.")
