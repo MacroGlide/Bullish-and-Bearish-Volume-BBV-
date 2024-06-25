@@ -17,7 +17,7 @@ Search for "Bullish/Bearish Volume" script on TradingView.
 For optimal use, combine the BBV Indicator with other technical analysis tools and adapt the settings to fit your trading strategy.
 
 ## Contact
-For queries, reach out to us at [macroglide@gmail.com].
+For queries, reach out to us at macroglide@gmail.com.
 
 ## Acknowledgements
 Gratitude to the research team and TradingView community for their support and feedback.
